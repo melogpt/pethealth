@@ -4,8 +4,6 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-// Note: Passwords will be automatically hashed by the User model's pre-save hook
-
 const sampleUsers = [
   {
     username: 'doctor1',
@@ -34,52 +32,55 @@ const sampleUsers = [
   }
 ];
 
-async function addSampleUsers() {
+async function resetUsersWithHashedPasswords() {
   try {
     // Wait for MongoDB connection
     if (mongoose.connection.readyState !== 1) {
       console.log('Waiting for MongoDB connection...');
       await new Promise((resolve) => {
         mongoose.connection.once('connected', resolve);
-        setTimeout(resolve, 5000); // Timeout after 5 seconds
+        setTimeout(resolve, 5000);
       });
     }
 
-    console.log('Starting to add sample users...\n');
+    console.log('Starting to reset users with properly hashed passwords...\n');
 
-    let addedCount = 0;
-    let skippedCount = 0;
+    let updatedCount = 0;
+    let createdCount = 0;
 
     for (const userData of sampleUsers) {
       try {
-        // Check if user already exists
+        // Find existing user
         const existingUser = await User.findOne({ username: userData.username });
 
         if (existingUser) {
-          console.log(`⏭️  Skipping ${userData.username} - already exists`);
-          skippedCount++;
-          continue;
+          // Delete existing user
+          await User.deleteOne({ username: userData.username });
+          console.log(`🗑️  Deleted existing user: ${userData.username}`);
         }
 
-        // Create user
+        // Create new user (password will be automatically hashed by pre-save hook)
         const user = await User.create(userData);
-
-        console.log(`✅ Added: ${user.username} (${user.user_type})`);
-        addedCount++;
+        console.log(`✅ Created/Updated: ${user.username} (${user.user_type})`);
+        
+        if (existingUser) {
+          updatedCount++;
+        } else {
+          createdCount++;
+        }
 
       } catch (error) {
-        console.error(`❌ Error adding ${userData.username}:`, error.message);
+        console.error(`❌ Error processing ${userData.username}:`, error.message);
       }
     }
 
-    console.log(`\n✨ Done! Added ${addedCount} users, skipped ${skippedCount} duplicates.`);
-    
-    // List all users
-    const allUsers = await User.find().lean();
-    console.log(`\n📋 Total users in database: ${allUsers.length}`);
-    allUsers.forEach(u => {
-      console.log(`   - ${u.username} (${u.user_type})`);
-    });
+    console.log(`\n✨ Done! Created ${createdCount} users, updated ${updatedCount} users.`);
+    console.log('\n📝 Test credentials:');
+    console.log('   Doctor: doctor1 / doctor123');
+    console.log('   Doctor: doctor2 / doctor456');
+    console.log('   Admin: vet_admin / admin123');
+    console.log('   Pet Owner: petowner1 / owner123');
+    console.log('   Pet Owner: petowner2 / owner456');
     
     process.exit(0);
 
@@ -89,5 +90,5 @@ async function addSampleUsers() {
   }
 }
 
-addSampleUsers();
+resetUsersWithHashedPasswords();
 

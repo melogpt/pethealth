@@ -20,11 +20,22 @@ router.post('/login', async (req, res) => {
     }
     
     try {
-      // MongoDB'de kullanıcıyı bul
-      const user = await User.findOne({ username, password });
+      // MongoDB'de kullanıcıyı bul (sadece username ile)
+      const user = await User.findOne({ username });
       
       if (!user) {
         console.log('Invalid credentials for user:', username);
+        return res.status(401).json({ 
+          success: false, 
+          message: 'Invalid credentials' 
+        });
+      }
+      
+      // Şifreyi hash'lenmiş şifre ile karşılaştır
+      const isPasswordValid = await user.comparePassword(password);
+      
+      if (!isPasswordValid) {
+        console.log('Invalid password for user:', username);
         return res.status(401).json({ 
           success: false, 
           message: 'Invalid credentials' 
